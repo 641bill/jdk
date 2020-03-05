@@ -244,6 +244,7 @@ class AbstractAssembler : public ResourceObj  {
 
  public:
   // count size of instructions which are skipped from inline heuristics
+ public:
   class InlineSkippedInstructionsCounter: public StackObj {
    private:
     AbstractAssembler* _assm;

@@ -26,10 +26,19 @@
 #define CPU_X86_GC_SHARED_BARRIERSETASSEMBLER_X86_HPP
 
 #include "asm/macroAssembler.hpp"
+#include "code/vmreg.hpp"
 #include "memory/allocation.hpp"
 #include "oops/access.hpp"
+#include "oops/accessDecorators.hpp"
+#ifdef COMPILER2
+#include "opto/optoreg.hpp"
+#endif // COMPILER2
 
 class InterpreterMacroAssembler;
+
+#ifdef COMPILER2
+class Node;
+#endif // COMPILER2
 
 class BarrierSetAssembler: public CHeapObj<mtGC> {
 private:
@@ -106,6 +115,9 @@ public:
   virtual void c2i_entry_barrier(MacroAssembler* masm);
 
   virtual void check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error);
+  
+  OptoReg::Name refine_register(const Node* node,
+                                OptoReg::Name opto_reg);
 };
 
 #endif // CPU_X86_GC_SHARED_BARRIERSETASSEMBLER_X86_HPP
