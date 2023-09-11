@@ -622,13 +622,11 @@ Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) c
   Node* offset = adr->is_AddP() ? adr->in(AddPNode::Offset) : top;
 
   // If we are reading the value of the referent field of a Reference
-  // object (either by using Unsafe directly or through reflection)
-  // then, if G1 is enabled, we need to record the referent in an
-  // SATB log buffer using the pre-barrier mechanism.
+  // object then, if G1 is enabled, we need to record the referent in 
+  // an SATB log buffer using the pre-barrier mechanism.
   // Also we need to add memory barrier to prevent commoning reads
   // from this field across safepoint since GC can change its value.
-  bool need_read_barrier = (((on_weak || on_phantom) && !no_keepalive) ||
-                            (in_heap && unknown && offset != top && obj != top));
+  bool need_read_barrier = ((on_weak || on_phantom) && !no_keepalive);
 
   if (!access.is_oop() || !need_read_barrier) {
     return CardTableBarrierSetC2::load_at_resolved(access, val_type);
@@ -646,26 +644,13 @@ Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) c
   bool requires_atomic_access = (decorators & MO_UNORDERED) == 0;
   bool unaligned = (decorators & C2_UNALIGNED) != 0;
   bool unsafe = (decorators & C2_UNSAFE_ACCESS) != 0;
+
+  // Use the pre-barrier to record the value in the referent field
+  access.set_barrier_data(G1C2BarrierPre);
   // Pinned control dependency is the strictest. So it's ok to substitute it for any other.
   load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
       LoadNode::Pinned, requires_atomic_access, unaligned, mismatched, unsafe,
       access.barrier_data());
-
-
-  if (on_weak || on_phantom) {
-    // Use the pre-barrier to record the value in the referent field
-    pre_barrier(kit, false /* do_load */,
-                kit->control(),
-                nullptr /* obj */, nullptr /* adr */, max_juint /* alias_idx */, nullptr /* val */, nullptr /* val_type */,
-                load /* pre_val */, T_OBJECT);
-    // Add memory barrier to prevent commoning reads from this field
-    // across safepoint since GC can change its value.
-    kit->insert_mem_bar(Op_MemBarCPUOrder);
-  } else if (unknown) {
-    // We do not require a mem bar inside pre_barrier if need_mem_bar
-    // is set: the barriers would be emitted by us.
-    insert_pre_barrier(kit, obj, offset, load, !need_cpu_mem_bar);
-  }
 
   return load;
 }
@@ -1094,6 +1079,50 @@ Node* G1BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) co
   access.set_barrier_data(get_store_barrier(access, val));
 
   return BarrierSetC2::store_at_resolved(access, val);
+}
+
+Node* G1BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
+                                                         Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
+  }
+
+  C2AccessValue value(new_val, value_type);
+
+  access.set_barrier_data(get_store_barrier(access, value));
+
+  return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
+}
+
+Node* G1BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
+                                                          Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
+  }
+
+  C2AccessValue value(new_val, value_type);
+
+  access.set_barrier_data(get_store_barrier(access, value));
+
+  return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
+}
+
+Node* G1BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
+  }
+
+  C2AccessValue value(new_val, value_type);
+
+  access.set_barrier_data(get_store_barrier(access, value));
+
+  return BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
 }
 
 // == Super late barrier expansion support
