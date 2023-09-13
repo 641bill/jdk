@@ -6121,7 +6121,6 @@ instruct storeImmP(memory mem, immP31 src)
 // Store Compressed Pointer
 instruct storeN(memory mem, rRegN src)
 %{
-  predicate(n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreN mem src));
 
   ins_cost(125); // XXX
@@ -6146,7 +6145,7 @@ instruct storeNKlass(memory mem, rRegN src)
 
 instruct storeImmN0(memory mem, immN0 zero)
 %{
-  predicate(CompressedOops::base() == NULL && n->as_Store()->barrier_data() == 0);
+  predicate(CompressedOops::base() == NULL);
   match(Set mem (StoreN mem zero));
 
   ins_cost(125); // XXX
@@ -6159,7 +6158,6 @@ instruct storeImmN0(memory mem, immN0 zero)
 
 instruct storeImmN(memory mem, immN src)
 %{
-  predicate(n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreN mem src));
 
   ins_cost(150); // XXX
@@ -6177,7 +6175,6 @@ instruct storeImmN(memory mem, immN src)
 
 instruct storeImmNKlass(memory mem, immNKlass src)
 %{
-  predicate(n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreNKlass mem src));
 
   ins_cost(150); // XXX
@@ -8195,7 +8192,6 @@ instruct compareAndSwapN(rRegI res,
                           memory mem_ptr,
                           rax_RegN oldval, rRegN newval,
                           rFlagsReg cr) %{
-  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem_ptr (Binary oldval newval)));
   effect(KILL cr, KILL oldval);
@@ -8286,7 +8282,6 @@ instruct compareAndExchangeN(
                           memory mem_ptr,
                           rax_RegN oldval, rRegN newval,
                           rFlagsReg cr) %{
-  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set oldval (CompareAndExchangeN mem_ptr (Binary oldval newval)));
   effect(KILL cr);
 
@@ -8508,7 +8503,6 @@ instruct xchgP( memory mem, rRegP newval) %{
 %}
 
 instruct xchgN( memory mem, rRegN newval) %{
-  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set newval (GetAndSetN mem newval));
   format %{ "XCHGL  $newval,$mem]" %}
   ins_encode %{

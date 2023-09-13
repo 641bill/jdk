@@ -467,12 +467,8 @@ private:
     // Create mask of live registers
     RegMask live = stub->live();
     live.Insert(OptoReg::as_OptoReg(stub->tmp1()->as_VMReg()));
-    if (stub->tmp2() != noreg) {
-      live.Insert(OptoReg::as_OptoReg(stub->tmp2()->as_VMReg()));
-    }
-    if (stub->tmp3() != noreg) {
-      live.Insert(OptoReg::as_OptoReg(stub->tmp3()->as_VMReg()));
-    }
+    live.Insert(OptoReg::as_OptoReg(stub->tmp2()->as_VMReg()));
+    live.Insert(OptoReg::as_OptoReg(stub->tmp3()->as_VMReg()));
 
     int gp_spill_size = 0;
     int opmask_spill_size = 0;
