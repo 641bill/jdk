@@ -5287,14 +5287,15 @@ instruct loadP(rRegP dst, memory mem)
 // Load Compressed Pointer
 instruct loadN(rRegN dst, memory mem)
 %{
-   match(Set dst (LoadN mem));
+  match(Set dst (LoadN mem));
+  // predicate(n->as_Load()->barrier_data() == 0);
 
-   ins_cost(125); // XXX
-   format %{ "movl    $dst, $mem\t# compressed ptr" %}
-   ins_encode %{
-     __ movl($dst$$Register, $mem$$Address);
-   %}
-   ins_pipe(ialu_reg_mem); // XXX
+  ins_cost(125); // XXX
+  format %{ "movl    $dst, $mem\t# compressed ptr" %}
+  ins_encode %{
+    __ movl($dst$$Register, $mem$$Address);
+  %}
+  ins_pipe(ialu_reg_mem); // XXX
 %}
 
 
@@ -6121,6 +6122,7 @@ instruct storeImmP(memory mem, immP31 src)
 // Store Compressed Pointer
 instruct storeN(memory mem, rRegN src)
 %{
+  predicate(n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreN mem src));
 
   ins_cost(125); // XXX
@@ -6145,7 +6147,7 @@ instruct storeNKlass(memory mem, rRegN src)
 
 instruct storeImmN0(memory mem, immN0 zero)
 %{
-  predicate(CompressedOops::base() == NULL);
+  predicate(CompressedOops::base() == NULL && n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreN mem zero));
 
   ins_cost(125); // XXX
@@ -6158,6 +6160,7 @@ instruct storeImmN0(memory mem, immN0 zero)
 
 instruct storeImmN(memory mem, immN src)
 %{
+  predicate(n->as_Store()->barrier_data() == 0);
   match(Set mem (StoreN mem src));
 
   ins_cost(150); // XXX
@@ -8192,6 +8195,7 @@ instruct compareAndSwapN(rRegI res,
                           memory mem_ptr,
                           rax_RegN oldval, rRegN newval,
                           rFlagsReg cr) %{
+  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem_ptr (Binary oldval newval)));
   effect(KILL cr, KILL oldval);
@@ -8282,6 +8286,7 @@ instruct compareAndExchangeN(
                           memory mem_ptr,
                           rax_RegN oldval, rRegN newval,
                           rFlagsReg cr) %{
+  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set oldval (CompareAndExchangeN mem_ptr (Binary oldval newval)));
   effect(KILL cr);
 
@@ -8503,6 +8508,7 @@ instruct xchgP( memory mem, rRegP newval) %{
 %}
 
 instruct xchgN( memory mem, rRegN newval) %{
+  // predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set newval (GetAndSetN mem newval));
   format %{ "XCHGL  $newval,$mem]" %}
   ins_encode %{

@@ -1096,6 +1096,44 @@ Node* G1BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) co
   return BarrierSetC2::store_at_resolved(access, val);
 }
 
+Node* G1BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
+                                                         Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
+  }
+
+  access.set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+  return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
+}
+
+Node* G1BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
+                                                          Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
+  }
+
+  access.set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+  return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
+}
+
+Node* G1BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
+  GraphKit* kit = access.kit();
+
+  if (!access.is_oop()) {
+    return BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
+  }
+
+  access.set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+  return BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
+}
+
 // == Super late barrier expansion support
 
 #if defined(X86) && defined(_LP64)
