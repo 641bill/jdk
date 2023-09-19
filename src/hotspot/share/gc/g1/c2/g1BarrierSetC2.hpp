@@ -133,7 +133,7 @@ protected:
                                                          Node* new_val, const Type* value_type) const;
   virtual Node* atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                 Node* new_val, const Type* value_type) const;
-  // virtual Node* atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const;
+  virtual Node* atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const;
 
 #ifdef ASSERT
   bool has_cas_in_use_chain(Node* x) const;
