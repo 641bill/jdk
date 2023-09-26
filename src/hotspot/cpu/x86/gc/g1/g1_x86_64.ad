@@ -407,7 +407,7 @@ instruct g1loadP(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
 %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadP mem));
-  effect(TEMP tmp, KILL cr);
+  effect(TEMP dst, TEMP tmp, KILL cr);
 
   ins_cost(125); // XXX
   format %{ "movq    $dst, $mem\t# ptr" %}
@@ -418,8 +418,8 @@ instruct g1loadP(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
                          noreg /* obj */,
                          $dst$$Register /* pre_val */,
                          $tmp$$Register /* tmp */,
-                         $tmp$$Register /* node_tmp1 */,
-                         noreg /* node_tmp2 */,
+                         $dst$$Register /* node_tmp1 */,
+                         $tmp$$Register /* node_tmp2 */,
                          noreg /* node_tmp3 */,
                          barrier_data() /* barrier_data */);
   %}
@@ -446,7 +446,7 @@ instruct g1loadN(rRegN dst, memory mem, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
                          $tmp2$$Register /* tmp */,
                          $tmp1$$Register /* node_tmp1 */,
                          $tmp2$$Register /* node_tmp2 */,
-                         noreg /* node_tmp3 */,
+                         $dst$$Register /* node_tmp3 */,
                          barrier_data() /* barrier_data */);
   %}
   ins_pipe(ialu_reg_mem); // XXX
