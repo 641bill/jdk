@@ -33,6 +33,7 @@ class LIR_Assembler;
 class StubAssembler;
 class G1PreBarrierStub;
 class G1PostBarrierStub;
+class G1BarrierStubC2;
 
 class G1BarrierSetAssembler: public ModRefBarrierSetAssembler {
 protected:
@@ -41,6 +42,7 @@ protected:
   void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                         Register start, Register count, Register tmp, RegSet saved_regs);
 
+public:
   void g1_write_barrier_pre(MacroAssembler* masm,
                             Register obj,
                             Register pre_val,
@@ -48,14 +50,18 @@ protected:
                             Register tmp1,
                             Register tmp2,
                             bool tosca_live,
-                            bool expand_call);
+                            bool expand_call,
+                            G1BarrierStubC2* c2_stub = nullptr);
 
   void g1_write_barrier_post(MacroAssembler* masm,
                              Register store_addr,
                              Register new_val,
                              Register thread,
                              Register tmp1,
-                             Register tmp2);
+                             Register tmp2,
+                             G1BarrierStubC2* c2_stub = nullptr);
+
+protected:
 
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
@@ -67,6 +73,10 @@ public:
 
   void generate_c1_pre_barrier_runtime_stub(StubAssembler* sasm);
   void generate_c1_post_barrier_runtime_stub(StubAssembler* sasm);
+#endif
+
+#ifdef COMPILER2
+  void emit_c2_barrier_stub(MacroAssembler* masm, G1BarrierStubC2* stub);
 #endif
 
   void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

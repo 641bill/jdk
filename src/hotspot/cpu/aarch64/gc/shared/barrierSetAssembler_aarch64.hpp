@@ -30,6 +30,14 @@
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "memory/allocation.hpp"
 #include "oops/access.hpp"
+#include "oops/accessDecorators.hpp"
+#ifdef COMPILER2
+#include "opto/optoreg.hpp"
+#endif // COMPILER2
+
+#ifdef COMPILER2
+class Node;
+#endif // COMPILER2
 
 enum class NMethodPatchingType {
   stw_instruction_and_data_patch,
@@ -129,6 +137,9 @@ public:
   static address patching_epoch_addr();
   static void clear_patching_epoch();
   static void increment_patching_epoch();
+
+  OptoReg::Name refine_register(const Node* node,
+                              OptoReg::Name opto_reg);
 };
 
 #endif // CPU_AARCH64_GC_SHARED_BARRIERSETASSEMBLER_AARCH64_HPP

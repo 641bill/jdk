@@ -623,6 +623,75 @@ Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) c
   return CardTableBarrierSetC2::load_at_resolved(access, val_type);
 }
 
+// Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
+//   DecoratorSet decorators = access.decorators();
+//   Node* adr = access.addr().node();
+//   Node* obj = access.base();
+
+//   bool anonymous = (decorators & C2_UNSAFE_ACCESS) != 0;
+//   bool mismatched = (decorators & C2_MISMATCHED) != 0;
+//   bool unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
+//   bool in_heap = (decorators & IN_HEAP) != 0;
+//   bool in_native = (decorators & IN_NATIVE) != 0;
+//   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
+//   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
+//   bool is_unordered = (decorators & MO_UNORDERED) != 0;
+//   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
+//   bool is_mixed = !in_heap && !in_native;
+//   bool need_cpu_mem_bar = !is_unordered || mismatched || is_mixed;
+
+//   Node* top = Compile::current()->top();
+//   Node* offset = adr->is_AddP() ? adr->in(AddPNode::Offset) : top;
+
+//   // If we are reading the value of the referent field of a Reference
+//   // object (either by using Unsafe directly or through reflection)
+//   // then, if G1 is enabled, we need to record the referent in an
+//   // SATB log buffer using the pre-barrier mechanism.
+//   // Also we need to add memory barrier to prevent commoning reads
+//   // from this field across safepoint since GC can change its value.
+//   bool need_read_barrier = (((on_weak || on_phantom) && !no_keepalive) ||
+//                             (in_heap && unknown && offset != top && obj != top));
+
+//   if (!access.is_oop() || !need_read_barrier) {
+//     return CardTableBarrierSetC2::load_at_resolved(access, val_type);
+//   }
+
+//   assert(access.is_parse_access(), "entry not supported at optimization time");
+
+//   C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+//   GraphKit* kit = parse_access.kit();
+//   Node* load;
+
+//   Node* control =  kit->control();
+//   const TypePtr* adr_type = access.addr().type();
+//   MemNode::MemOrd mo = access.mem_node_mo();
+//   bool requires_atomic_access = (decorators & MO_UNORDERED) == 0;
+//   bool unaligned = (decorators & C2_UNALIGNED) != 0;
+//   bool unsafe = (decorators & C2_UNSAFE_ACCESS) != 0;
+//   // Pinned control dependency is the strictest. So it's ok to substitute it for any other.
+//   load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
+//       LoadNode::Pinned, requires_atomic_access, unaligned, mismatched, unsafe,
+//       access.barrier_data());
+
+
+//   if (on_weak || on_phantom) {
+//     // Use the pre-barrier to record the value in the referent field
+//     pre_barrier(kit, false /* do_load */,
+//                 kit->control(),
+//                 nullptr /* obj */, nullptr /* adr */, max_juint /* alias_idx */, nullptr /* val */, nullptr /* val_type */,
+//                 load /* pre_val */, T_OBJECT);
+//     // Add memory barrier to prevent commoning reads from this field
+//     // across safepoint since GC can change its value.
+//     kit->insert_mem_bar(Op_MemBarCPUOrder);
+//   } else if (unknown) {
+//     // We do not require a mem bar inside pre_barrier if need_mem_bar
+//     // is set: the barriers would be emitted by us.
+//     insert_pre_barrier(kit, obj, offset, load, !need_cpu_mem_bar);
+//   }
+
+//   return load;
+// }
+
 bool G1BarrierSetC2::is_gc_barrier_node(Node* node) const {
   if (CardTableBarrierSetC2::is_gc_barrier_node(node)) {
     return true;
@@ -1089,8 +1158,6 @@ Node* G1BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node*
 
 // == Super late barrier expansion support
 
-#if defined(X86) && defined(_LP64)
-
 class G1BarrierSetC2State : public ArenaObj {
 private:
   GrowableArray<G1BarrierStubC2*>* _stubs;
@@ -1341,24 +1408,3 @@ void G1BarrierSetC2::compute_liveness_at_stubs() const {
     }
   }
 }
-
-#else
-
-void* G1BarrierSetC2::create_barrier_state(Arena* comp_arena) const {
-  return nullptr;
-}
-
-void G1BarrierSetC2::late_barrier_analysis() const {
-}
-
-void G1BarrierSetC2::emit_stubs(CodeBuffer& cb) const {
-}
-
-int G1BarrierSetC2::estimate_stub_size() const {
-  return 0;
-}
-
-void G1BarrierSetC2::compute_liveness_at_stubs() const {
-}
-
-#endif

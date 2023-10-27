@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.hpp"
+#include "code/vmreg.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
@@ -34,7 +35,9 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-
+#ifdef COMPILER2
+#include "opto/node.hpp"
+#endif
 
 #define __ masm->
 
@@ -419,3 +422,20 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
   __ load_klass(obj, obj); // get klass
   __ cbz(obj, error);      // if klass is null it is broken
 }
+
+#ifdef COMPILER2
+
+OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) {
+  if (!OptoReg::is_reg(opto_reg)) {
+    return OptoReg::Bad;
+  }
+
+  const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+  if (vm_reg->is_FloatRegister()) {
+    return opto_reg & ~1;
+  }
+
+  return opto_reg;
+}
+
+#endif // COMPILER2
