@@ -374,12 +374,12 @@ instruct g1CompareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP newval, iRegPNo
   ins_pipe(pipe_slow);
 %}
 
-instruct g1XChgP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
+instruct g1XChgP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp preval, rFlagsReg cr) 
 %{
   predicate(UseG1GC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set newval (GetAndSetP mem newval));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set preval (GetAndSetP mem newval));
+  effect(TEMP preval, TEMP tmp1, TEMP tmp2, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -388,40 +388,41 @@ instruct g1XChgP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRe
   ins_encode %{
     assert_different_registers($mem$$Register, $newval$$Register);
     DecoratorSet decorators = IN_HEAP;
+
+    __ atomic_xchg($preval$$Register, $newval$$Register, $mem$$Register);
+
     g1_pre_write_barrier(_masm /* _masm */,
                         this /* node */,
-                        $mem$$Register/* obj */,
-                        $tmp1$$Register /* pre_val */,
-                        $tmp2$$Register /* tmp1 */,
-                        $tmp3$$Register /* tmp2 */,
-                        $tmp1$$Register /* node_tmp1 */,
-                        $tmp2$$Register /* node_tmp2 */,
-                        $tmp3$$Register /* node_tmp3 */,
+                        noreg /* obj */,
+                        $preval$$Register /* pre_val */,
+                        $tmp1$$Register /* tmp1 */,
+                        $tmp2$$Register /* tmp2 */,
+                        $preval$$Register /* node_tmp1 */,
+                        $tmp1$$Register /* node_tmp2 */,
+                        $tmp2$$Register /* node_tmp3 */,
                         barrier_data() /* barrier_data */);
-
-    __ atomic_xchg($newval$$Register, $newval$$Register, $mem$$Register);
 
     g1_post_write_barrier(_masm /* _masm */,
                           this /* node */,
                           $mem$$Register /* store_addr */,
                           $newval$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp3$$Register /* tmp2 */,
+                          $tmp1$$Register /* tmp1 */,
+                          $tmp2$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          noreg /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
   ins_pipe(pipe_serial);
 %}
 
-instruct g1XChgPAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
+instruct g1XChgPAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp preval, rFlagsReg cr) 
 %{
   predicate(UseG1GC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set newval (GetAndSetP mem newval));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set preval (GetAndSetP mem newval));
+  effect(TEMP preval, TEMP tmp1, TEMP tmp2, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -430,28 +431,29 @@ instruct g1XChgPAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, 
   ins_encode %{
     assert_different_registers($mem$$Register, $newval$$Register);
     DecoratorSet decorators = IN_HEAP;
+
+    __ atomic_xchgal($preval$$Register, $newval$$Register, $mem$$Register);
+
     g1_pre_write_barrier(_masm /* _masm */,
                         this /* node */,
-                        $mem$$Register/* obj */,
-                        $tmp1$$Register /* pre_val */,
-                        $tmp2$$Register /* tmp1 */,
-                        $tmp3$$Register /* tmp2 */,
-                        $tmp1$$Register /* node_tmp1 */,
-                        $tmp2$$Register /* node_tmp2 */,
-                        $tmp3$$Register /* node_tmp3 */,
+                        noreg /* obj */,
+                        $preval$$Register /* pre_val */,
+                        $tmp1$$Register /* tmp1 */,
+                        $tmp2$$Register /* tmp2 */,
+                        $preval$$Register /* node_tmp1 */,
+                        $tmp1$$Register /* node_tmp2 */,
+                        $tmp2$$Register /* node_tmp3 */,
                         barrier_data() /* barrier_data */);
-
-    __ atomic_xchgal($newval$$Register, $newval$$Register, $mem$$Register);
 
     g1_post_write_barrier(_masm /* _masm */,
                           this /* node */,
                           $mem$$Register /* store_addr */,
                           $newval$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp3$$Register /* tmp2 */,
+                          $tmp1$$Register /* tmp1 */,
+                          $tmp2$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          noreg /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
