@@ -32,10 +32,6 @@ source %{
 #include "gc/g1/g1BarrierSetAssembler_aarch64.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
 
-// static void my_debug_function1() {}
-
-// static void my_debug_function2() {}
-
 static void g1_pre_write_barrier(MacroAssembler& _masm,
                                  const MachNode* node, 
                                  Register obj,
@@ -184,7 +180,7 @@ instruct g1StoreN(indirect mem, iRegN src, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegP
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(125); // XXX
-  format %{ "movq    $mem, $src\t# ptr" %}
+  format %{ "strw  $src, $mem\t# compressed ptr" %}
   ins_encode %{
     DecoratorSet decorators = IN_HEAP;
     const Address ref_addr = Address($mem$$Register, 0);
@@ -225,10 +221,9 @@ instruct g1StoreNVolatile(indirect mem, iRegN src, iRegPNoSp tmp1, iRegPNoSp tmp
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(125); // XXX
-  format %{ "movq    $mem, $src\t# ptr" %}
+  format %{ "stlrw  $src, $mem\t# compressed ptr" %}
   ins_encode %{
     DecoratorSet decorators = IN_HEAP;
-
     g1_pre_write_barrier(_masm /* _masm */,
                          this /* node */,
                          $mem$$Register/* obj */,
@@ -241,7 +236,7 @@ instruct g1StoreNVolatile(indirect mem, iRegN src, iRegPNoSp tmp1, iRegPNoSp tmp
                          barrier_data() /* barrier_data */);
 
     __ stlrw($src$$Register, $mem$$Register);
-    __ mov($tmp1$$Register, $src$$Register);
+    __ movw($tmp1$$Register, $src$$Register);
     __ decode_heap_oop($tmp1$$Register);
 
     g1_post_write_barrier(_masm /* _masm */,
@@ -258,12 +253,12 @@ instruct g1StoreNVolatile(indirect mem, iRegN src, iRegPNoSp tmp1, iRegPNoSp tmp
   ins_pipe(pipe_serial);
 %}
 
-instruct g1CompareAndExchangeP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, iRegP oldval, rFlagsReg cr) 
+instruct g1CompareAndExchangeP(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
 %{
   predicate(UseG1GC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set oldval (CompareAndExchangeP mem (Binary oldval newval)));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -289,7 +284,7 @@ instruct g1CompareAndExchangeP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegP
     __ mov($tmp2$$Register, $newval$$Register);
 
     __ cmpxchg($mem$$Register, $tmp1$$Register, $tmp2$$Register, Assembler::xword,
-               false /* acquire */, true /* release */, false /* weak */, $oldval$$Register);
+               false /* acquire */, true /* release */, false /* weak */, $res$$Register);
 
     g1_post_write_barrier(_masm /* _masm */,
                           this /* node */,
@@ -299,19 +294,19 @@ instruct g1CompareAndExchangeP(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegP
                           $tmp3$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          $res$$Register /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
   ins_pipe(pipe_slow);
 %}
 
-instruct g1CompareAndExchangePAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, iRegP oldval, rFlagsReg cr) 
+instruct g1CompareAndExchangePAcq(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
 %{
   predicate(UseG1GC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set oldval (CompareAndExchangeP mem (Binary oldval newval)));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -337,9 +332,7 @@ instruct g1CompareAndExchangePAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iR
     __ mov($tmp2$$Register, $newval$$Register);
 
     __ cmpxchg($mem$$Register, $tmp1$$Register, $tmp2$$Register, Assembler::xword,
-               true /* acquire */, true /* release */, false /* weak */, $oldval$$Register);
-               
-    __ decode_heap_oop($tmp2$$Register);
+               true /* acquire */, true /* release */, false /* weak */, $res$$Register);
 
     g1_post_write_barrier(_masm /* _masm */,
                           this /* node */,
@@ -349,19 +342,19 @@ instruct g1CompareAndExchangePAcq(indirect mem, iRegP newval, iRegPNoSp tmp1, iR
                           $tmp3$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          $res$$Register /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
   ins_pipe(pipe_slow);
 %}
 
-instruct g1CompareAndExchangeN(indirect mem, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, iRegN oldval, rFlagsReg cr) 
+instruct g1CompareAndExchangeN(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
 %{
   predicate(UseG1GC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set oldval (CompareAndExchangeN mem (Binary oldval newval)));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -387,7 +380,7 @@ instruct g1CompareAndExchangeN(indirect mem, iRegN newval, iRegPNoSp tmp1, iRegP
     __ mov($tmp2$$Register, $newval$$Register);
 
     __ cmpxchg($mem$$Register, $tmp1$$Register, $tmp2$$Register, Assembler::word,
-               false /* acquire */, true /* release */, false /* weak */, $oldval$$Register);
+               false /* acquire */, true /* release */, false /* weak */, $res$$Register);
     
     __ decode_heap_oop($tmp2$$Register);
 
@@ -399,19 +392,19 @@ instruct g1CompareAndExchangeN(indirect mem, iRegN newval, iRegPNoSp tmp1, iRegP
                           $tmp3$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          $res$$Register /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
   ins_pipe(pipe_slow);
 %}
 
-instruct g1CompareAndExchangeNAcq(indirect mem, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, iRegN oldval, rFlagsReg cr) 
+instruct g1CompareAndExchangeNAcq(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, rFlagsReg cr) 
 %{
   predicate(UseG1GC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
 
-  match(Set oldval (CompareAndExchangeN mem (Binary oldval newval)));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
 
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -437,7 +430,7 @@ instruct g1CompareAndExchangeNAcq(indirect mem, iRegN newval, iRegPNoSp tmp1, iR
     __ mov($tmp2$$Register, $newval$$Register);
 
     __ cmpxchg($mem$$Register, $tmp1$$Register, $tmp2$$Register, Assembler::word,
-               true /* acquire */, true /* release */, false /* weak */, $oldval$$Register);
+               true /* acquire */, true /* release */, false /* weak */, $res$$Register);
 
     __ decode_heap_oop($tmp2$$Register);
 
@@ -449,7 +442,7 @@ instruct g1CompareAndExchangeNAcq(indirect mem, iRegN newval, iRegPNoSp tmp1, iR
                           $tmp3$$Register /* tmp2 */,
                           $tmp1$$Register /* node_tmp1 */,
                           $tmp2$$Register /* node_tmp2 */,
-                          $tmp3$$Register /* node_tmp3 */,
+                          $res$$Register /* node_tmp3 */,
                           barrier_data() /* barrier_data */);
   %}
 
@@ -535,6 +528,7 @@ instruct g1CompareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP newval, iRegPNo
                          $tmp2$$Register /* node_tmp2 */,
                          $tmp3$$Register /* node_tmp3 */,
                          barrier_data() /* barrier_data */);
+                         
     __ mov($tmp1$$Register, $oldval$$Register);
     __ mov($tmp2$$Register, $newval$$Register);
 
@@ -910,16 +904,18 @@ instruct g1LoadN(iRegNNoSp dst, memory mem, iRegPNoSp tmp1, iRegPNoSp tmp2, iReg
     __ mov($tmp1$$Register, $dst$$Register);
     __ decode_heap_oop($tmp1$$Register);
 
-    g1_pre_write_barrier(_masm /* _masm */,
-                         this /* node */,
-                         noreg /* obj */,
-                         $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
-                         $tmp3$$Register /* tmp2 */,
-                         $tmp1$$Register /* node_tmp1 */,
-                         $tmp2$$Register /* node_tmp2 */,
-                         $dst$$Register /* node_tmp3 */,
-                         barrier_data() /* barrier_data */);
+    if ((barrier_data() & G1C2BarrierPre) != 0) {
+      g1_pre_write_barrier(_masm /* _masm */,
+                          this /* node */,
+                          noreg /* obj */,
+                          $tmp1$$Register /* pre_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */,
+                          $tmp1$$Register /* node_tmp1 */,
+                          $tmp2$$Register /* node_tmp2 */,
+                          $dst$$Register /* node_tmp3 */,
+                          barrier_data() /* barrier_data */);
+    }
   %}
   ins_pipe(iload_reg_mem); // XXX
 %}
@@ -940,16 +936,18 @@ instruct g1LoadNVolatile(iRegNNoSp dst, indirect mem, iRegPNoSp tmp1, iRegPNoSp 
     __ mov($tmp1$$Register, $dst$$Register);
     __ decode_heap_oop($tmp1$$Register);
     
-    g1_pre_write_barrier(_masm /* _masm */,
-                         this /* node */,
-                         noreg /* obj */,
-                         $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
-                         $tmp3$$Register /* tmp2 */,
-                         $tmp1$$Register /* node_tmp1 */,
-                         $tmp2$$Register /* node_tmp2 */,
-                         $dst$$Register /* node_tmp3 */,
-                         barrier_data() /* barrier_data */);
+    if ((barrier_data() & G1C2BarrierPre) != 0) {
+      g1_pre_write_barrier(_masm /* _masm */,
+                          this /* node */,
+                          noreg /* obj */,
+                          $tmp1$$Register /* pre_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */,
+                          $tmp1$$Register /* node_tmp1 */,
+                          $tmp2$$Register /* node_tmp2 */,
+                          $dst$$Register /* node_tmp3 */,
+                          barrier_data() /* barrier_data */);
+    }
   %}
   ins_pipe(iload_reg_mem); // XXX
 %}
