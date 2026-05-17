@@ -1399,6 +1399,9 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
   if (comp == nullptr || compilation_is_prohibited(method, osr_bci, comp_level, directive->ExcludeOption)) {
     return nullptr;
   }
+  if (UseRiftRegions && (comp->is_c2() || comp->is_jvmci())) {
+    return nullptr;
+  }
 
   if (osr_bci == InvocationEntryBci) {
     // standard compilation
