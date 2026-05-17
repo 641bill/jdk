@@ -60,6 +60,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -387,7 +388,13 @@ JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
   // make sure klass is initialized
   h->initialize(CHECK);
   // allocate instance and return via TLS
-  oop obj = h->allocate_instance(CHECK);
+  oop obj = nullptr;
+  if (UseRiftRegions && RiftRegionRuntime::has_current_region(current)) {
+    obj = RiftRegionRuntime::allocate_instance(current, h, CHECK);
+  }
+  if (obj == nullptr) {
+    obj = h->allocate_instance(CHECK);
+  }
   current->set_vm_result_oop(obj);
 JRT_END
 
