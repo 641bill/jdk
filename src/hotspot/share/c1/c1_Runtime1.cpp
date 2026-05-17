@@ -350,6 +350,7 @@ const char* Runtime1::name_for_address(address entry) {
   FUNCTION_CASE(entry, SharedRuntime::lrem);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_entry);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_exit);
+  FUNCTION_CASE(entry, Runtime1::rift_oop_store_base);
   FUNCTION_CASE(entry, is_instance_of);
   FUNCTION_CASE(entry, trace_block_entry);
 #ifdef JFR_HAVE_INTRINSICS
@@ -396,6 +397,12 @@ JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
     obj = h->allocate_instance(CHECK);
   }
   current->set_vm_result_oop(obj);
+JRT_END
+
+JRT_ENTRY(void, Runtime1::rift_oop_store_base(JavaThread* current, oopDesc* value, oopDesc* base))
+  if (UseRiftRegions) {
+    RiftRegionRuntime::verify_oop_store_to_base(cast_to_oop(value), cast_to_oop(base), CHECK);
+  }
 JRT_END
 
 

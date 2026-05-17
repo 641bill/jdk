@@ -423,6 +423,26 @@ void RiftRegionRuntime::verify_oop_store(oop value, address dst, TRAPS) {
             "heap object retains an object allocated in a Rift region");
 }
 
+void RiftRegionRuntime::verify_oop_store_to_base(oop value, oop base, TRAPS) {
+  if (value == nullptr || !UseRiftRegions) {
+    return;
+  }
+  RegionState* value_state = find_region_oop_state(value, true);
+  if (value_state == nullptr) {
+    return;
+  }
+  RegionState* base_state = find_region_oop_state(base, false);
+  if (base_state != nullptr) {
+    return;
+  }
+  if (value_state->_closed) {
+    THROW_MSG(vmSymbols::java_lang_IllegalStateException(),
+              "Rift region object is closed");
+  }
+  THROW_MSG(vmSymbols::java_lang_IllegalStateException(),
+            "heap object retains an object allocated in a Rift region");
+}
+
 void RiftRegionRuntime::verify_live_oop(oop value, TRAPS) {
   if (value == nullptr || !UseRiftRegions) {
     return;

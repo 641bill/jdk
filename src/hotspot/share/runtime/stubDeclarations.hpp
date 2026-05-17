@@ -97,6 +97,7 @@
   do_blob(handle_exception)                                            \
   do_blob(handle_exception_from_callee)                                \
   do_blob(throw_array_store_exception)                                 \
+  do_blob(rift_oop_store_base)                                         \
   do_blob(throw_class_cast_exception)                                  \
   do_blob(throw_incompatible_class_change_error)                       \
   do_blob(slow_subtype_check)                                          \

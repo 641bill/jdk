@@ -146,6 +146,8 @@ public:
   // platform might add runtime names.
   static const char* pd_name_for_address(address entry);
 
+  static void rift_oop_store_base(JavaThread* current, oopDesc* value, oopDesc* base);
+
   // method tracing
   static void trace_block_entry(jint block_id);
 

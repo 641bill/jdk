@@ -1600,6 +1600,19 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     decorators |= C1_NEEDS_PATCHING;
   }
 
+  if (UseRiftRegions && is_reference_type(field_type)) {
+    BasicTypeList signature;
+    signature.append(T_OBJECT); // value
+    signature.append(T_OBJECT); // destination base object or class mirror
+    LIR_OprList* args = new LIR_OprList();
+    args->append(value.result());
+    args->append(object.result());
+    CodeEmitInfo* rift_store_info = info != nullptr ? new CodeEmitInfo(info) : state_for(x);
+    call_runtime(&signature, args,
+                 CAST_FROM_FN_PTR(address, Runtime1::entry_for(C1StubId::rift_oop_store_base_id)),
+                 voidType, rift_store_info);
+  }
+
   access_store_at(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
                   value.result(), info != nullptr ? new CodeEmitInfo(info) : nullptr, info);
 }
@@ -1657,6 +1670,18 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (GenerateArrayStoreCheck && needs_store_check) {
     CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
     array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
+  }
+
+  if (UseRiftRegions && obj_store) {
+    BasicTypeList signature;
+    signature.append(T_OBJECT); // value
+    signature.append(T_OBJECT); // array base
+    LIR_OprList* args = new LIR_OprList();
+    args->append(value.result());
+    args->append(array.result());
+    call_runtime(&signature, args,
+                 CAST_FROM_FN_PTR(address, Runtime1::entry_for(C1StubId::rift_oop_store_base_id)),
+                 voidType, new CodeEmitInfo(range_check_info));
   }
 
   DecoratorSet decorators = IN_HEAP | IS_ARRAY;

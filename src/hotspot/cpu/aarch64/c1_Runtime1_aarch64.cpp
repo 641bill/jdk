@@ -1061,6 +1061,21 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
       }
       break;
 
+    case C1StubId::rift_oop_store_base_id:
+      {
+        __ set_info("rift_oop_store_base", dont_gc_arguments);
+
+        __ enter();
+        OopMap* map = save_live_registers(sasm);
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, rift_oop_store_base), c_rarg0, c_rarg1);
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm);
+        __ leave();
+        __ ret(lr);
+      }
+      break;
+
     case C1StubId::predicate_failed_trap_id:
       {
         StubFrame f(sasm, "predicate_failed_trap", dont_gc_arguments, does_not_return);
