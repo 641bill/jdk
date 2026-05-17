@@ -66,6 +66,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
@@ -88,6 +89,14 @@ AlwaysTrueClosure   SerialFullGC::_always_true_closure;
 ReferenceProcessor* SerialFullGC::_ref_processor;
 
 StringDedup::Requests*  SerialFullGC::_string_dedup_requests = nullptr;
+
+static bool is_rift_region_oop_value(oop value) {
+  return UseRiftRegions && value != nullptr && RiftRegionRuntime::is_region_oop(value);
+}
+
+static bool is_rift_region_oop_value(narrowOop value) {
+  return false;
+}
 
 SerialFullGC::FollowRootClosure  SerialFullGC::follow_root_closure;
 
@@ -443,6 +452,10 @@ template <class T> void SerialFullGC::follow_root(T* p) {
          "roots shouldn't be things within the heap");
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
+    if (is_rift_region_oop_value(heap_oop)) {
+      follow_stack();
+      return;
+    }
     oop obj = CompressedOops::decode_not_null(heap_oop);
     if (!obj->mark().is_marked()) {
       mark_object(obj);
@@ -605,6 +618,9 @@ void SerialFullGC::mark_object(oop obj) {
 template <class T> void SerialFullGC::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
+    if (is_rift_region_oop_value(heap_oop)) {
+      return;
+    }
     oop obj = CompressedOops::decode_not_null(heap_oop);
     if (!obj->mark().is_marked()) {
       mark_object(obj);
@@ -621,6 +637,9 @@ void MarkAndPushClosure::do_oop(narrowOop* p)         { do_oop_work(p); }
 template <class T> void SerialFullGC::adjust_pointer(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
+    if (is_rift_region_oop_value(heap_oop)) {
+      return;
+    }
     oop obj = CompressedOops::decode_not_null(heap_oop);
     assert(Universe::heap()->is_in(obj), "should be in heap");
 
