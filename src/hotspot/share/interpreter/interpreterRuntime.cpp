@@ -67,6 +67,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -221,8 +222,20 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   // Make sure klass is initialized
   klass->initialize(CHECK);
 
-  oop obj = klass->allocate_instance(CHECK);
+  oop obj = nullptr;
+  if (UseRiftRegions && RiftRegionRuntime::has_current_region(current)) {
+    obj = RiftRegionRuntime::allocate_instance(current, klass, CHECK);
+  }
+  if (obj == nullptr) {
+    obj = klass->allocate_instance(CHECK);
+  }
   current->set_vm_result_oop(obj);
+JRT_END
+
+JRT_ENTRY(void, InterpreterRuntime::rift_oop_store(JavaThread* current, oopDesc* value, address dst))
+  if (UseRiftRegions) {
+    RiftRegionRuntime::verify_oop_store(cast_to_oop(value), dst, CHECK);
+  }
 JRT_END
 
 
@@ -802,7 +815,8 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
     Symbol* signature = call.signature();
     receiver = Handle(current, last_frame.callee_receiver(signature));
 
-    assert(Universe::heap()->is_in_or_null(receiver()),
+    assert(Universe::heap()->is_in_or_null(receiver()) ||
+           RiftRegionRuntime::is_region_oop(receiver()),
            "sanity check");
     assert(receiver.is_null() ||
            !Universe::heap()->is_in(receiver->klass()),

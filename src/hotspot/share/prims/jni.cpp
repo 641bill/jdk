@@ -81,6 +81,7 @@
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -1880,7 +1881,11 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
+  oop value_oop = JNIHandles::resolve(value);
+  if (UseRiftRegions) {
+    RiftRegionRuntime::verify_oop_store(value_oop, cast_from_oop<address>(o) + offset, CHECK);
+  }
+  HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, value_oop);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
@@ -2073,7 +2078,12 @@ JNI_ENTRY(void, jni_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fie
     field_value.l = value;
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  id->holder()->java_mirror()->obj_field_put(id->offset(), JNIHandles::resolve(value));
+  oop value_oop = JNIHandles::resolve(value);
+  oop mirror = id->holder()->java_mirror();
+  if (UseRiftRegions) {
+    RiftRegionRuntime::verify_oop_store(value_oop, cast_from_oop<address>(mirror) + id->offset(), CHECK);
+  }
+  mirror->obj_field_put(id->offset(), value_oop);
   HOTSPOT_JNI_SETSTATICOBJECTFIELD_RETURN();
 JNI_END
 

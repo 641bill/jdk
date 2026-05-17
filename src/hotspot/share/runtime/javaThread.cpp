@@ -430,6 +430,7 @@ JavaThread::JavaThread(MemTag mem_tag) :
   _current_waiting_monitor(nullptr),
   _active_handles(nullptr),
   _free_handle_block(nullptr),
+  _rift_current_region(nullptr),
   _monitor_owner_id(0),
 
   _suspend_flags(0),

@@ -36,6 +36,7 @@
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaThread.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "runtime/synchronizer.hpp"
 #include "utilities/macros.hpp"
 
@@ -112,7 +113,9 @@ intptr_t oopDesc::slow_identity_hash() {
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (!Universe::heap()->is_oop(obj)) {
-    return false;
+    if (!UseRiftRegions || !RiftRegionRuntime::is_region_oop(obj)) {
+      return false;
+    }
   }
 
   // Header verification: the mark is typically non-zero. If we're

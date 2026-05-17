@@ -61,6 +61,7 @@ class InterpreterRuntime: AllStatic {
   static void    anewarray     (JavaThread* current, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* current, jint* first_size_address);
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
+  static void    rift_oop_store(JavaThread* current, oopDesc* value, address dst);
 
   // Quicken instance-of and check-cast bytecodes
   static void    quicken_io_cc(JavaThread* current);

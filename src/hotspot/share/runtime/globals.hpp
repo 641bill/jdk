@@ -174,6 +174,9 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, AlwaysSafeConstructors, false, EXPERIMENTAL,                \
           "Force safe construction, as if all fields are final.")           \
                                                                             \
+  product(bool, UseRiftRegions, false, EXPERIMENTAL,                       \
+          "Enable the experimental Rift region VM backend.")                \
+                                                                            \
   product(bool, UnlockDiagnosticVMOptions, trueInDebug, DIAGNOSTIC,         \
           "Enable normal processing of flags relating to field diagnostics")\
                                                                             \

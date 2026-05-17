@@ -163,6 +163,10 @@ class JavaThread: public Thread {
   // One-element thread local free list
   JNIHandleBlock* _free_handle_block;
 
+  // Experimental Rift region backend: currently active region handle for this
+  // Java thread. This is intentionally opaque outside riftRegionRuntime.
+  void* _rift_current_region;
+
   // ID used as owner for inflated monitors. Same as the j.l.Thread.tid of the
   // current _vthread object, except during creation of the primordial and JNI
   // attached thread cases where this field can have a temporary value.
@@ -208,6 +212,9 @@ class JavaThread: public Thread {
   void set_active_handles(JNIHandleBlock* block) { _active_handles = block; }
   JNIHandleBlock* free_handle_block() const      { return _free_handle_block; }
   void set_free_handle_block(JNIHandleBlock* block) { _free_handle_block = block; }
+
+  void* rift_current_region() const              { return _rift_current_region; }
+  void set_rift_current_region(void* region)     { _rift_current_region = region; }
 
   void push_jni_handle_block();
   void pop_jni_handle_block();

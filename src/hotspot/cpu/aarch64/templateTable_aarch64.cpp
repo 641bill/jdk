@@ -149,7 +149,18 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators) {
   assert(val == noreg || val == r0, "parameter is just for looks");
-  __ store_heap_oop(dst, val, r10, r11, r3, decorators);
+  if (val != noreg) {
+    const Register dst_addr = r9;
+    __ lea(dst_addr, dst);
+    __ stp(val, dst_addr, Address(__ pre(sp, -2 * wordSize)));
+    __ mov(c_rarg1, val);
+    __ mov(c_rarg2, dst_addr);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::rift_oop_store), c_rarg1, c_rarg2);
+    __ ldp(val, dst_addr, Address(__ post(sp, 2 * wordSize)));
+    __ store_heap_oop(Address(dst_addr), val, r10, r11, r3, decorators);
+  } else {
+    __ store_heap_oop(dst, val, r10, r11, r3, decorators);
+  }
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,
@@ -3592,6 +3603,10 @@ void TemplateTable::_new() {
   Label slow_case;
   Label done;
   Label initialize_header;
+
+  if (UseRiftRegions) {
+    __ b(slow_case);
+  }
 
   __ get_cpool_and_tags(r4, r0);
   // Make sure the class we're about to instantiate has been resolved.

@@ -49,6 +49,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/riftRegionRuntime.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threadSMR.hpp"
@@ -277,6 +278,10 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
+  if (UseRiftRegions) {
+    address dst = p == nullptr ? reinterpret_cast<address>(static_cast<intptr_t>(offset)) : cast_from_oop<address>(p) + offset;
+    RiftRegionRuntime::verify_oop_store(x, dst, CHECK);
+  }
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -291,6 +296,10 @@ UNSAFE_ENTRY(void, Unsafe_PutReferenceVolatile(JNIEnv *env, jobject unsafe, jobj
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
+  if (UseRiftRegions) {
+    address dst = p == nullptr ? reinterpret_cast<address>(static_cast<intptr_t>(offset)) : cast_from_oop<address>(p) + offset;
+    RiftRegionRuntime::verify_oop_store(x, dst, CHECK);
+  }
   HeapAccess<MO_SEQ_CST | ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
