@@ -63,6 +63,10 @@ RIFT_ENTRY(void, RiftRegion_RegisterEligible(JNIEnv* env, jclass cls, jclass eli
   RiftRegionRuntime::register_eligible(InstanceKlass::cast(klass), CHECK);
 RIFT_END
 
+RIFT_ENTRY(void, RiftRegion_VerifyLive(JNIEnv* env, jclass cls, jobject value))
+  RiftRegionRuntime::verify_live_oop(JNIHandles::resolve(value), CHECK);
+RIFT_END
+
 RIFT_ENTRY(jlongArray, RiftRegion_Stats(JNIEnv* env, jclass cls, jlong handle))
   const int len = RiftRegionRuntime::StatsLength;
   jlong values[len];
@@ -82,6 +86,7 @@ static JNINativeMethod jdk_internal_rift_RiftRegion_methods[] = {
   { const_cast<char*>("current"),     const_cast<char*>("()J"),   reinterpret_cast<void*>(RiftRegion_Current) },
   { const_cast<char*>("allocateRaw"), const_cast<char*>("(JJ)J"), reinterpret_cast<void*>(RiftRegion_AllocateRaw) },
   { const_cast<char*>("registerEligible"), const_cast<char*>("(Ljava/lang/Class;)V"), reinterpret_cast<void*>(RiftRegion_RegisterEligible) },
+  { const_cast<char*>("verifyLive"), const_cast<char*>("(Ljava/lang/Object;)V"), reinterpret_cast<void*>(RiftRegion_VerifyLive) },
   { const_cast<char*>("stats"),       const_cast<char*>("(J)[J"), reinterpret_cast<void*>(RiftRegion_Stats) },
 };
 

@@ -36,6 +36,7 @@ public final class RiftRegion {
     public static native long current();
     public static native long allocateRaw(long handle, long bytes);
     public static native void registerEligible(Class<?> cls);
+    public static native void verifyLive(Object value);
     public static native long[] stats(long handle);
 
     public static void epoch(long capacity, Runnable body) {

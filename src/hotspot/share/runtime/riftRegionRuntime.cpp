@@ -34,6 +34,8 @@ class RiftRegionRuntime::RegionState : public CHeapObj<mtInternal> {
   char* _base;
   char* _top;
   char* _end;
+  char* _closed_base;
+  char* _closed_end;
   size_t _capacity;
   size_t _high_water;
   jlong _opens;
@@ -52,6 +54,8 @@ class RiftRegionRuntime::RegionState : public CHeapObj<mtInternal> {
     _base(nullptr),
     _top(nullptr),
     _end(nullptr),
+    _closed_base(nullptr),
+    _closed_end(nullptr),
     _capacity(capacity),
     _high_water(0),
     _opens(1),
@@ -80,6 +84,8 @@ class RiftRegionRuntime::RegionState : public CHeapObj<mtInternal> {
 
   void reset_and_free() {
     if (_base != nullptr) {
+      _closed_base = _base;
+      _closed_end = _end;
       FREE_C_HEAP_ARRAY(char, _base);
       _base = nullptr;
       _top = nullptr;
@@ -94,6 +100,17 @@ class RiftRegionRuntime::RegionState : public CHeapObj<mtInternal> {
     }
     char* p = cast_from_oop<char*>(obj);
     return _base <= p && p < _top;
+  }
+
+  bool contains_known(oop obj) const {
+    if (obj == nullptr) {
+      return false;
+    }
+    char* p = cast_from_oop<char*>(obj);
+    if (_base != nullptr && _base <= p && p < _top) {
+      return true;
+    }
+    return _closed_base != nullptr && _closed_base <= p && p < _closed_end;
   }
 };
 
@@ -210,21 +227,35 @@ static HeapWord* allocate_region_words(RiftRegionRuntime::RegionState* state, si
   return reinterpret_cast<HeapWord*>(result);
 }
 
+static RiftRegionRuntime::RegionState* find_region_oop_state(oop obj, bool include_closed) {
+  if (obj == nullptr || rift_regions == nullptr) {
+    return nullptr;
+  }
+  for (int i = 0; i < rift_regions->length(); i++) {
+    RiftRegionRuntime::RegionState* state = rift_regions->at(i);
+    if (!state->_closed && state->contains(obj)) {
+      return state;
+    }
+  }
+  if (!include_closed) {
+    return nullptr;
+  }
+  for (int i = 0; i < rift_regions->length(); i++) {
+    RiftRegionRuntime::RegionState* state = rift_regions->at(i);
+    if (state->_closed && state->contains_known(obj)) {
+      return state;
+    }
+  }
+  return nullptr;
+}
+
 bool RiftRegionRuntime::has_current_region(JavaThread* current) {
   return current->rift_current_region() != nullptr;
 }
 
 bool RiftRegionRuntime::is_region_oop(oop obj) {
-  if (obj == nullptr || rift_regions == nullptr) {
-    return false;
-  }
-  for (int i = 0; i < rift_regions->length(); i++) {
-    RegionState* state = rift_regions->at(i);
-    if (!state->_closed && state->contains(obj)) {
-      return true;
-    }
-  }
-  return false;
+  RegionState* state = find_region_oop_state(obj, false);
+  return state != nullptr && !state->_closed;
 }
 
 static bool is_region_address(address dst) {
@@ -381,7 +412,8 @@ void RiftRegionRuntime::verify_oop_store(oop value, address dst, TRAPS) {
   if (value == nullptr || !UseRiftRegions) {
     return;
   }
-  if (!is_region_oop(value)) {
+  RegionState* state = find_region_oop_state(value, true);
+  if (state == nullptr) {
     return;
   }
   if (is_region_address(dst)) {
@@ -389,6 +421,19 @@ void RiftRegionRuntime::verify_oop_store(oop value, address dst, TRAPS) {
   }
   THROW_MSG(vmSymbols::java_lang_IllegalStateException(),
             "heap object retains an object allocated in a Rift region");
+}
+
+void RiftRegionRuntime::verify_live_oop(oop value, TRAPS) {
+  if (value == nullptr || !UseRiftRegions) {
+    return;
+  }
+  RegionState* state = find_region_oop_state(value, true);
+  if (state == nullptr) {
+    return;
+  }
+  if (state->_closed) {
+    THROW_MSG(vmSymbols::java_lang_IllegalStateException(), "Rift region object is closed");
+  }
 }
 
 void RiftRegionRuntime::stats(JavaThread* current, jlong handle, jlong* out, int len, TRAPS) {

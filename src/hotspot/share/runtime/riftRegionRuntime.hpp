@@ -37,6 +37,7 @@ class RiftRegionRuntime : public AllStatic {
   static void register_eligible(InstanceKlass* klass, TRAPS);
   static bool is_eligible(InstanceKlass* klass);
   static oop allocate_instance(JavaThread* current, InstanceKlass* klass, TRAPS);
+  static void verify_live_oop(oop value, TRAPS);
   static void verify_oop_store(oop value, address dst, TRAPS);
   static void stats(JavaThread* current, jlong handle, jlong* out, int len, TRAPS);
 };
