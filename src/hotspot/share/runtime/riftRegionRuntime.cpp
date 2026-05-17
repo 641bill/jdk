@@ -132,6 +132,18 @@ static void require_enabled(TRAPS) {
     THROW_MSG(vmSymbols::java_lang_UnsupportedOperationException(),
               "Rift regions require -XX:+UnlockExperimentalVMOptions -XX:+UseRiftRegions");
   }
+  if (!UseSerialGC) {
+    THROW_MSG(vmSymbols::java_lang_UnsupportedOperationException(),
+              "Rift regions prototype currently requires -XX:+UseSerialGC");
+  }
+  if (UseCompressedOops) {
+    THROW_MSG(vmSymbols::java_lang_UnsupportedOperationException(),
+              "Rift regions prototype currently requires -XX:-UseCompressedOops");
+  }
+  if (UseCompactObjectHeaders) {
+    THROW_MSG(vmSymbols::java_lang_UnsupportedOperationException(),
+              "Rift regions prototype currently requires -XX:-UseCompactObjectHeaders");
+  }
 }
 
 static RiftRegionRuntime::RegionState* require_state(jlong handle, TRAPS) {
