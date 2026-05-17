@@ -67,6 +67,19 @@ RIFT_ENTRY(void, RiftRegion_VerifyLive(JNIEnv* env, jclass cls, jobject value))
   RiftRegionRuntime::verify_live_oop(JNIHandles::resolve(value), CHECK);
 RIFT_END
 
+RIFT_ENTRY(jlong, RiftRegion_CreateHeapRoot(JNIEnv* env, jclass cls, jobject value))
+  return RiftRegionRuntime::create_heap_root(thread, JNIHandles::resolve(value), CHECK_0);
+RIFT_END
+
+RIFT_ENTRY(jobject, RiftRegion_ResolveHeapRoot(JNIEnv* env, jclass cls, jlong handle))
+  oop value = RiftRegionRuntime::resolve_heap_root(handle, CHECK_NULL);
+  return JNIHandles::make_local(THREAD, value);
+RIFT_END
+
+RIFT_ENTRY(void, RiftRegion_ReleaseHeapRoot(JNIEnv* env, jclass cls, jlong handle))
+  RiftRegionRuntime::release_heap_root(handle, CHECK);
+RIFT_END
+
 RIFT_ENTRY(jlongArray, RiftRegion_Stats(JNIEnv* env, jclass cls, jlong handle))
   const int len = RiftRegionRuntime::StatsLength;
   jlong values[len];
@@ -87,6 +100,9 @@ static JNINativeMethod jdk_internal_rift_RiftRegion_methods[] = {
   { const_cast<char*>("allocateRaw"), const_cast<char*>("(JJ)J"), reinterpret_cast<void*>(RiftRegion_AllocateRaw) },
   { const_cast<char*>("registerEligible"), const_cast<char*>("(Ljava/lang/Class;)V"), reinterpret_cast<void*>(RiftRegion_RegisterEligible) },
   { const_cast<char*>("verifyLive"), const_cast<char*>("(Ljava/lang/Object;)V"), reinterpret_cast<void*>(RiftRegion_VerifyLive) },
+  { const_cast<char*>("createHeapRoot"), const_cast<char*>("(Ljava/lang/Object;)J"), reinterpret_cast<void*>(RiftRegion_CreateHeapRoot) },
+  { const_cast<char*>("resolveHeapRoot"), const_cast<char*>("(J)Ljava/lang/Object;"), reinterpret_cast<void*>(RiftRegion_ResolveHeapRoot) },
+  { const_cast<char*>("releaseHeapRoot"), const_cast<char*>("(J)V"), reinterpret_cast<void*>(RiftRegion_ReleaseHeapRoot) },
   { const_cast<char*>("stats"),       const_cast<char*>("(J)[J"), reinterpret_cast<void*>(RiftRegion_Stats) },
 };
 

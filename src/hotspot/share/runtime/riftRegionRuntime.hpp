@@ -40,6 +40,9 @@ class RiftRegionRuntime : public AllStatic {
   static void verify_live_oop(oop value, TRAPS);
   static void verify_oop_store(oop value, address dst, TRAPS);
   static void verify_oop_store_to_base(oop value, oop base, TRAPS);
+  static jlong create_heap_root(JavaThread* current, oop value, TRAPS);
+  static oop resolve_heap_root(jlong handle, TRAPS);
+  static void release_heap_root(jlong handle, TRAPS);
   static void stats(JavaThread* current, jlong handle, jlong* out, int len, TRAPS);
 };
 

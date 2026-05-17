@@ -18,8 +18,10 @@
 #include "runtime/atomic.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/riftRegionRuntime.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -466,6 +468,46 @@ void RiftRegionRuntime::verify_live_oop(oop value, TRAPS) {
   if (state->_closed) {
     THROW_MSG(vmSymbols::java_lang_IllegalStateException(), "Rift region object is closed");
   }
+}
+
+jlong RiftRegionRuntime::create_heap_root(JavaThread* current, oop value, TRAPS) {
+  require_enabled(CHECK_0);
+  if (value == nullptr) {
+    THROW_MSG_0(vmSymbols::java_lang_NullPointerException(), "heap root value is null");
+  }
+  if (find_region_oop_state(value, true) != nullptr) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "heap root value must not be a Rift region object");
+  }
+  Handle value_h(current, value);
+  jobject root = JNIHandles::make_global(value_h, AllocFailStrategy::RETURN_NULL);
+  if (root == nullptr) {
+    THROW_MSG_0(vmSymbols::java_lang_OutOfMemoryError(), "Rift heap root allocation failed");
+  }
+  return static_cast<jlong>(reinterpret_cast<intptr_t>(root));
+}
+
+oop RiftRegionRuntime::resolve_heap_root(jlong handle, TRAPS) {
+  require_enabled(CHECK_NULL);
+  if (handle == 0) {
+    THROW_MSG_NULL(vmSymbols::java_lang_NullPointerException(), "null Rift heap root handle");
+  }
+  jobject root = reinterpret_cast<jobject>(static_cast<intptr_t>(handle));
+  if (!JNIHandles::is_global_handle(root)) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "invalid Rift heap root handle");
+  }
+  return JNIHandles::resolve(root);
+}
+
+void RiftRegionRuntime::release_heap_root(jlong handle, TRAPS) {
+  require_enabled(CHECK);
+  if (handle == 0) {
+    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "null Rift heap root handle");
+  }
+  jobject root = reinterpret_cast<jobject>(static_cast<intptr_t>(handle));
+  if (!JNIHandles::is_global_handle(root)) {
+    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "invalid Rift heap root handle");
+  }
+  JNIHandles::destroy_global(root);
 }
 
 void RiftRegionRuntime::stats(JavaThread* current, jlong handle, jlong* out, int len, TRAPS) {
